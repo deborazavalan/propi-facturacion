@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Propi Facturación</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <!-- Login -->
+  <main id="vista-login" class="login">
+    <form id="form-login" class="tarjeta login-tarjeta" autocomplete="off">
+      <h1>Propi Facturación</h1>
+      <p class="sub">Inicie sesión con su usuario de SQL Server</p>
+      <label for="usuario">Usuario</label>
+      <input id="usuario" name="usuario" type="text" maxlength="128" required autofocus>
+      <label for="clave">Contraseña</label>
+      <input id="clave" name="clave" type="password" maxlength="128" required>
+      <p id="login-error" class="error oculto" role="alert"></p>
+      <button id="btn-login" type="submit" class="primario">Ingresar</button>
+    </form>
+  </main>
+
+  <!-- Aplicación -->
+  <div id="vista-app" class="oculto">
+    <header class="barra">
+      <strong class="marca">Propi Facturación</strong>
+      <nav id="menu" class="menu"></nav>
+      <div class="usuario">
+        <span id="info-usuario"></span>
+        <button id="btn-salir" type="button">Salir</button>
+      </div>
+    </header>
+
+    <main class="contenido">
+      <section id="panel-entidad" class="oculto">
+        <div class="encabezado-panel">
+          <h2 id="titulo-entidad"></h2>
+          <button id="btn-nuevo" type="button" class="primario">Nuevo</button>
+        </div>
+        <form id="form-filtros" class="filtros">
+          <input id="filtro-texto" type="search" placeholder="Buscar" maxlength="100" aria-label="Buscar">
+          <select id="filtro-estado" aria-label="Estado">
+            <option value="T">Todos</option>
+            <option value="A">Activos</option>
+            <option value="I">Inactivos</option>
+          </select>
+          <button type="submit">Buscar</button>
+        </form>
+        <p id="mensaje-panel" class="mensaje oculto" role="status"></p>
+        <div class="tabla-contenedor">
+          <table id="tabla">
+            <thead id="tabla-cabecera"></thead>
+            <tbody id="tabla-cuerpo"></tbody>
+          </table>
+        </div>
+        <p id="resumen" class="sub"></p>
+      </section>
+
+      <section id="panel-reporte" class="oculto">
+        <div class="encabezado-panel">
+          <h2 id="titulo-reporte"></h2>
+          <button id="btn-csv" type="button">Descargar CSV</button>
+        </div>
+        <form id="form-reporte" class="filtros filtros-reporte">
+          <div id="filtros-reporte" class="filtros-campos"></div>
+          <button type="submit" class="primario">Generar</button>
+        </form>
+        <p id="mensaje-reporte" class="mensaje oculto" role="status"></p>
+        <div class="tabla-contenedor">
+          <table>
+            <thead id="rep-cabecera"></thead>
+            <tbody id="rep-cuerpo"></tbody>
+          </table>
+        </div>
+        <p id="resumen-reporte" class="sub"></p>
+      </section>
+
+      <section id="panel-vacio" class="tarjeta oculto">
+        <h2>Sin módulos disponibles</h2>
+        <p id="texto-vacio"></p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Formulario modal para crear y editar -->
+  <dialog id="dialogo">
+    <form id="form-entidad" class="dialogo-form" autocomplete="off">
+      <h3 id="dialogo-titulo"></h3>
+      <div id="dialogo-campos" class="campos"></div>
+      <p id="dialogo-error" class="error oculto" role="alert"></p>
+      <div class="acciones">
+        <button id="dialogo-cancelar" type="button">Cancelar</button>
+        <button id="dialogo-guardar" type="submit" class="primario">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Formulario de factura (encabezado + líneas) -->
+  <dialog id="dialogo-factura" class="dialogo-ancho">
+    <form id="form-factura" class="dialogo-form" autocomplete="off">
+      <h3 id="factura-titulo"></h3>
+      <div class="campos">
+        <div class="completo">
+          <label for="fa-buscar-cliente">Cliente *</label>
+          <div class="fila-buscar">
+            <input id="fa-buscar-cliente" type="search" maxlength="100" placeholder="Nombre o identificación exacta">
+            <button id="fa-btn-cliente" type="button">Buscar</button>
+          </div>
+          <select id="fa-cliente" required></select>
+        </div>
+        <div>
+          <label for="fa-condicion">Condición de venta *</label>
+          <select id="fa-condicion" required></select>
+        </div>
+        <div>
+          <label for="fa-medio">Medio de pago *</label>
+          <select id="fa-medio" required></select>
+        </div>
+        <div>
+          <label for="fa-moneda">Moneda *</label>
+          <select id="fa-moneda" required></select>
+        </div>
+        <div>
+          <label for="fa-cambio">Tipo de cambio *</label>
+          <input id="fa-cambio" type="number" min="0.0001" max="99999999" step="0.0001" value="1" required>
+        </div>
+        <div class="completo">
+          <label for="fa-obs">Observaciones</label>
+          <input id="fa-obs" type="text" maxlength="500">
+        </div>
+      </div>
+
+      <h4 class="subtitulo-form">Líneas de la factura</h4>
+      <div id="fa-agregar" class="fila-linea">
+        <input id="fa-buscar-producto" type="search" maxlength="100" placeholder="Buscar producto por descripción o CABYS" aria-label="Buscar producto">
+        <button id="fa-btn-producto" type="button">Buscar</button>
+        <select id="fa-producto" aria-label="Producto"></select>
+        <input id="fa-cantidad" type="number" min="0.001" max="999999999" step="0.001" value="1" aria-label="Cantidad">
+        <button id="fa-btn-agregar" type="button" class="primario">Agregar</button>
+      </div>
+      <div class="tabla-contenedor tabla-lineas">
+        <table>
+          <thead>
+            <tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Impuesto</th><th>Monto</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="fa-lineas"></tbody>
+          <tfoot id="fa-totales"></tfoot>
+        </table>
+      </div>
+
+      <p id="factura-error" class="error oculto" role="alert"></p>
+      <div class="acciones">
+        <button id="fa-cancelar" type="button">Cerrar</button>
+        <button id="fa-guardar" type="submit" class="primario">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+  <script src="factura.js"></script>
+</body>
+</html>
