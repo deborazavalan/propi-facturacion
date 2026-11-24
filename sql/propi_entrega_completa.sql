@@ -2,6 +2,7 @@
 -- Cada parte indica la instancia a la que hay que conectarse antes de ejecutarla. Orden: 1, 2, 3, 4; las partes 5 y 6 son las pruebas de conmutación.
 -- La parte 1 borra y recrea PropiDB en SQLEXPRESS. Las partes 2 a 6 usan las instancias SQLSERVERPT y SQLSERVERSJ y el respaldo C:\SQLBackups\PropiDB_full.bak.
 
+
 -- ============================================================
 -- PARTE 1 | SQLEXPRESS (base original) | crear PropiDB completa, medir índices
 -- ============================================================
@@ -2678,85 +2679,20 @@ WHERE r.name IN (N'rol_administrador', N'rol_digitador', N'rol_consulta')
 ORDER BY r.name, dp.state_desc, dp.class_desc, objeto, dp.permission_name;
 GO
 
--- indices de los reportes
+-- indices y planes de ejecucion (REQ 009)
 USE PropiDB;
 GO
-CREATE NONCLUSTERED INDEX IX_Cliente_fecha_registro
-    ON dbo.Cliente (fecha_registro)
-    INCLUDE (estado, nombre, codigo_actividad_economica);
-
-CREATE NONCLUSTERED INDEX IX_Factura_fecha
-    ON dbo.Factura (fecha)
-    INCLUDE (codigo_cliente, subtotal, total_impuestos, monto_total);
-
-CREATE NONCLUSTERED INDEX IX_BitacoraAuditoria_fec_registro
-    ON dbo.Bitacora_Auditoria (fec_registro)
-    INCLUDE (cod_usuario, ind_accion, cod_tabla, cod_llave);
-GO
-
--- medicion con indices
-SET NOCOUNT ON;
-SET STATISTICS IO ON;
-SET STATISTICS TIME ON;
-CHECKPOINT;
-DBCC DROPCLEANBUFFERS;
-DECLARE @sel_d DATE = DATEADD(DAY, -60,  CAST(GETDATE() AS DATE));
-DECLARE @sel_h DATE = DATEADD(DAY, -30,  CAST(GETDATE() AS DATE));
-DECLARE @amp_d DATE = DATEADD(DAY, -730, CAST(GETDATE() AS DATE));
-DECLARE @amp_h DATE = CAST(GETDATE() AS DATE);
-PRINT N'A1 Clientes | selectivo';
-SELECT COUNT_BIG(*) AS filas, MAX(nombre) AS n, MAX(codigo_actividad_economica) AS a, MIN(estado) AS e
-  FROM dbo.Cliente
- WHERE fecha_registro >= @sel_d AND fecha_registro < DATEADD(DAY, 1, @sel_h) OPTION (RECOMPILE);
-
-PRINT N'A2 Clientes | amplio';
-SELECT COUNT_BIG(*) AS filas, MAX(nombre) AS n, MAX(codigo_actividad_economica) AS a, MIN(estado) AS e
-  FROM dbo.Cliente
- WHERE fecha_registro >= @amp_d AND fecha_registro < DATEADD(DAY, 1, @amp_h) OPTION (RECOMPILE);
-
-PRINT N'A3 Facturas | selectivo';
-SELECT COUNT_BIG(*) AS filas, SUM(subtotal) AS s, SUM(total_impuestos) AS i, SUM(monto_total) AS t, MAX(codigo_cliente) AS c
-  FROM dbo.Factura
- WHERE fecha >= @sel_d AND fecha < DATEADD(DAY, 1, @sel_h) OPTION (RECOMPILE);
-
-PRINT N'A4 Facturas | amplio';
-SELECT COUNT_BIG(*) AS filas, SUM(subtotal) AS s, SUM(total_impuestos) AS i, SUM(monto_total) AS t, MAX(codigo_cliente) AS c
-  FROM dbo.Factura
- WHERE fecha >= @amp_d AND fecha < DATEADD(DAY, 1, @amp_h) OPTION (RECOMPILE);
-
-PRINT N'A5 Auditoría | selectivo';
-SELECT COUNT_BIG(*) AS filas, MAX(cod_usuario) AS u, MAX(ind_accion) AS a, MAX(cod_tabla) AS t, MAX(cod_llave) AS l
-  FROM dbo.Bitacora_Auditoria
- WHERE fec_registro >= @sel_d AND fec_registro < DATEADD(DAY, 1, @sel_h) OPTION (RECOMPILE);
-
-PRINT N'A6 Auditoría | amplio';
-SELECT COUNT_BIG(*) AS filas, MAX(cod_usuario) AS u, MAX(ind_accion) AS a, MAX(cod_tabla) AS t, MAX(cod_llave) AS l
-  FROM dbo.Bitacora_Auditoria
- WHERE fec_registro >= @amp_d AND fec_registro < DATEADD(DAY, 1, @amp_h) OPTION (RECOMPILE);
-
-PRINT N'B1 usp_Reporte_Clientes | selectivo';
-EXEC dbo.usp_Reporte_Clientes  @fecha_desde = @sel_d, @fecha_hasta = @sel_h, @estado = 'T';
-PRINT N'B2 usp_Reporte_Clientes | amplio';
-EXEC dbo.usp_Reporte_Clientes  @fecha_desde = @amp_d, @fecha_hasta = @amp_h, @estado = 'T';
-PRINT N'B3 usp_Reporte_Facturas | selectivo';
-EXEC dbo.usp_Reporte_Facturas  @fecha_desde = @sel_d, @fecha_hasta = @sel_h;
-PRINT N'B4 usp_Reporte_Facturas | amplio';
-EXEC dbo.usp_Reporte_Facturas  @fecha_desde = @amp_d, @fecha_hasta = @amp_h;
-PRINT N'B5 usp_Reporte_Auditoria | selectivo';
-EXEC dbo.usp_Reporte_Auditoria @fecha_desde = @sel_d, @fecha_hasta = @sel_h, @usuario = NULL;
-PRINT N'B6 usp_Reporte_Auditoria | amplio';
-EXEC dbo.usp_Reporte_Auditoria @fecha_desde = @amp_d, @fecha_hasta = @amp_h, @usuario = NULL;
-SET STATISTICS IO OFF;
-SET STATISTICS TIME OFF;
-GO
-
--- indices y planes de los procedimientos del CRUD
 USE PropiDB;
 GO
+
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_BitacoraAuditoria_fec_registro' AND object_id = OBJECT_ID(N'dbo.Bitacora_Auditoria'))
     DROP INDEX IX_BitacoraAuditoria_fec_registro ON dbo.Bitacora_Auditoria;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'CIX_BitacoraAuditoria_fec_registro' AND object_id = OBJECT_ID(N'dbo.Bitacora_Auditoria'))
     DROP INDEX CIX_BitacoraAuditoria_fec_registro ON dbo.Bitacora_Auditoria;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Cliente_fecha_registro' AND object_id = OBJECT_ID(N'dbo.Cliente'))
+    DROP INDEX IX_Cliente_fecha_registro ON dbo.Cliente;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Factura_fecha' AND object_id = OBJECT_ID(N'dbo.Factura'))
+    DROP INDEX IX_Factura_fecha ON dbo.Factura;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Factura_codigo_cliente' AND object_id = OBJECT_ID(N'dbo.Factura'))
     DROP INDEX IX_Factura_codigo_cliente ON dbo.Factura;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Nota_num_factura' AND object_id = OBJECT_ID(N'dbo.Nota_Credito_Debito'))
@@ -2834,8 +2770,44 @@ BEGIN
     EXEC dbo.usp_Reporte_Auditoria @fecha_desde = @sel_d, @fecha_hasta = @sel_h, @usuario = NULL;
     PRINT N'## C19 usp_Reporte_Auditoria (rango amplio)';
     EXEC dbo.usp_Reporte_Auditoria @fecha_desde = @amp_d, @fecha_hasta = @amp_h, @usuario = NULL;
+    PRINT N'## C21 usp_Reporte_Clientes (rango amplio)';
+    EXEC dbo.usp_Reporte_Clientes  @fecha_desde = @amp_d, @fecha_hasta = @amp_h, @estado = 'T';
+    PRINT N'## C22 usp_Reporte_Facturas (rango amplio)';
+    EXEC dbo.usp_Reporte_Facturas  @fecha_desde = @amp_d, @fecha_hasta = @amp_h;
     PRINT N'## C20 usp_Reporte_Seguridad (lee el catálogo del sistema, no tablas del negocio)';
     EXEC dbo.usp_Reporte_Seguridad @usuario = NULL;
+END
+GO
+
+IF OBJECT_ID('tempdb..#plan_req009') IS NOT NULL DROP PROCEDURE #plan_req009;
+GO
+CREATE PROCEDURE #plan_req009 @momento NVARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF OBJECT_ID('tempdb..#pl') IS NOT NULL DROP TABLE #pl;
+    ;WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
+    SELECT DISTINCT OBJECT_NAME(ps.object_id, ps.database_id) AS proc_nombre,
+           x.n.value('@PhysicalOp', 'varchar(40)') AS operador,
+           x.n.value('(IndexScan/Object/@Table)[1]', 'sysname') AS tabla,
+           ISNULL(x.n.value('(IndexScan/Object/@Index)[1]', 'sysname'), N'(heap)') AS indice
+      INTO #pl
+      FROM sys.dm_exec_procedure_stats ps
+     CROSS APPLY sys.dm_exec_query_plan(ps.plan_handle) qp
+     CROSS APPLY qp.query_plan.nodes('//RelOp[IndexScan]') x(n)
+     WHERE ps.database_id = DB_ID() AND OBJECT_NAME(ps.object_id, ps.database_id) LIKE N'usp[_]%';
+    DECLARE @p SYSNAME, @t NVARCHAR(MAX);
+    DECLARE c CURSOR LOCAL FAST_FORWARD FOR
+        SELECT proc_nombre, STRING_AGG(CONVERT(NVARCHAR(MAX), operador + N' ' + tabla + N'.' + indice), N' | ') WITHIN GROUP (ORDER BY tabla, indice)
+          FROM #pl GROUP BY proc_nombre ORDER BY proc_nombre;
+    OPEN c; FETCH NEXT FROM c INTO @p, @t;
+    PRINT N'>>> PLANES ' + @momento;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        PRINT N'PLAN ' + @momento + N' | ' + @p + N' | ' + LEFT(@t, 3500);
+        FETCH NEXT FROM c INTO @p, @t;
+    END
+    CLOSE c; DEALLOCATE c;
 END
 GO
 
@@ -2845,8 +2817,11 @@ DBCC DROPCLEANBUFFERS;
 DBCC FREEPROCCACHE;
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
-PRINT N'>>> ANTES';
+PRINT N'>>> ANTES (1)';
 EXEC #carga_req009;
+PRINT N'>>> ANTES (2)';
+EXEC #carga_req009;
+EXEC #plan_req009 @momento = N'ANTES';
 SET STATISTICS IO OFF;
 SET STATISTICS TIME OFF;
 
@@ -2860,6 +2835,14 @@ GO
 
 CREATE CLUSTERED INDEX CIX_BitacoraAuditoria_fec_registro
     ON dbo.Bitacora_Auditoria (fec_registro);
+
+CREATE NONCLUSTERED INDEX IX_Cliente_fecha_registro
+    ON dbo.Cliente (fecha_registro)
+    INCLUDE (estado, nombre, codigo_actividad_economica);
+
+CREATE NONCLUSTERED INDEX IX_Factura_fecha
+    ON dbo.Factura (fecha)
+    INCLUDE (codigo_cliente, subtotal, total_impuestos, monto_total);
 
 CREATE NONCLUSTERED INDEX IX_Factura_codigo_cliente
     ON dbo.Factura (codigo_cliente)
@@ -2899,8 +2882,11 @@ DBCC DROPCLEANBUFFERS;
 DBCC FREEPROCCACHE;
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
-PRINT N'>>> DESPUÉS';
+PRINT N'>>> DESPUÉS (1)';
 EXEC #carga_req009;
+PRINT N'>>> DESPUÉS (2)';
+EXEC #carga_req009;
+EXEC #plan_req009 @momento = N'DESPUÉS';
 SET STATISTICS IO OFF;
 SET STATISTICS TIME OFF;
 
