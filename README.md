@@ -13,6 +13,7 @@ Aplicación web (Node.js + Express) que se conecta a SQL Server con el usuario d
 8. `sql/07_indices_procedimientos_crud.sql` (REQ 009 parte 2: índices clustered y nonclustered para los procedimientos del CRUD; se corre después del 05, por pasos)
 
 `sql/propi_script_unico.sql` es un solo archivo, sin encabezados, que borra y recrea PropiDB, carga todo (tablas, triggers, datos, reportes, CRUD, permisos) y al final mide los índices antes y después (REQ 009). Ejecutarlo completo con "Descartar resultados" activado en SSMS y leer la pestaña Mensajes. `sql/propi_script_completo_anexo.sql` es la versión anterior solo hasta los índices de los reportes.
+- `sql/propi_script_documentado.sql`: igual que el único, pero con los comentarios de cada script (00, 01, 02, 03, 06, 04, 05, 07).
 
 ## 2. Aplicación
 1. Copiar `.env.example` como `.env` y ajustar servidor, instancia y base (`DB_NAME=PropiDB`).
