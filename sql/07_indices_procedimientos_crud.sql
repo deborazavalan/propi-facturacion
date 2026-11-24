@@ -135,6 +135,39 @@ BEGIN
 END
 GO
 
+
+IF OBJECT_ID('tempdb..#plan_req009') IS NOT NULL DROP PROCEDURE #plan_req009;
+GO
+CREATE PROCEDURE #plan_req009 @momento NVARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF OBJECT_ID('tempdb..#pl') IS NOT NULL DROP TABLE #pl;
+    ;WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
+    SELECT DISTINCT OBJECT_NAME(ps.object_id, ps.database_id) AS proc_nombre,
+           x.n.value('@PhysicalOp', 'varchar(40)') AS operador,
+           x.n.value('(IndexScan/Object/@Table)[1]', 'sysname') AS tabla,
+           ISNULL(x.n.value('(IndexScan/Object/@Index)[1]', 'sysname'), N'(heap)') AS indice
+      INTO #pl
+      FROM sys.dm_exec_procedure_stats ps
+     CROSS APPLY sys.dm_exec_query_plan(ps.plan_handle) qp
+     CROSS APPLY qp.query_plan.nodes('//RelOp[IndexScan]') x(n)
+     WHERE ps.database_id = DB_ID() AND OBJECT_NAME(ps.object_id, ps.database_id) LIKE N'usp[_]%';
+    DECLARE @p SYSNAME, @t NVARCHAR(MAX);
+    DECLARE c CURSOR LOCAL FAST_FORWARD FOR
+        SELECT proc_nombre, STRING_AGG(CONVERT(NVARCHAR(MAX), operador + N' ' + tabla + N'.' + indice), N' | ') WITHIN GROUP (ORDER BY tabla, indice)
+          FROM #pl GROUP BY proc_nombre ORDER BY proc_nombre;
+    OPEN c; FETCH NEXT FROM c INTO @p, @t;
+    PRINT N'>>> PLANES ' + @momento;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        PRINT N'PLAN ' + @momento + N' | ' + @p + N' | ' + LEFT(@t, 3500);
+        FETCH NEXT FROM c INTO @p, @t;
+    END
+    CLOSE c; DEALLOCATE c;
+END
+GO
+
 /* ---------------------------- PASO 2: medición ANTES ---------------------------- */
 SET NOCOUNT ON;
 CHECKPOINT;
@@ -146,6 +179,7 @@ PRINT N'>>> ANTES (1)';
 EXEC #carga_req009;
 PRINT N'>>> ANTES (2)';
 EXEC #carga_req009;
+EXEC #plan_req009 @momento = N'ANTES';
 SET STATISTICS IO OFF;
 SET STATISTICS TIME OFF;
 
@@ -223,6 +257,7 @@ PRINT N'>>> DESPUÉS (1)';
 EXEC #carga_req009;
 PRINT N'>>> DESPUÉS (2)';
 EXEC #carga_req009;
+EXEC #plan_req009 @momento = N'DESPUÉS';
 SET STATISTICS IO OFF;
 SET STATISTICS TIME OFF;
 
