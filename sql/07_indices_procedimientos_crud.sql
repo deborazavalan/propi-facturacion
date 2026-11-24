@@ -42,6 +42,10 @@ IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_BitacoraAuditoria_fec_reg
     DROP INDEX IX_BitacoraAuditoria_fec_registro ON dbo.Bitacora_Auditoria;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'CIX_BitacoraAuditoria_fec_registro' AND object_id = OBJECT_ID(N'dbo.Bitacora_Auditoria'))
     DROP INDEX CIX_BitacoraAuditoria_fec_registro ON dbo.Bitacora_Auditoria;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Cliente_fecha_registro' AND object_id = OBJECT_ID(N'dbo.Cliente'))
+    DROP INDEX IX_Cliente_fecha_registro ON dbo.Cliente;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Factura_fecha' AND object_id = OBJECT_ID(N'dbo.Factura'))
+    DROP INDEX IX_Factura_fecha ON dbo.Factura;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Factura_codigo_cliente' AND object_id = OBJECT_ID(N'dbo.Factura'))
     DROP INDEX IX_Factura_codigo_cliente ON dbo.Factura;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Nota_num_factura' AND object_id = OBJECT_ID(N'dbo.Nota_Credito_Debito'))
@@ -122,6 +126,10 @@ BEGIN
     EXEC dbo.usp_Reporte_Auditoria @fecha_desde = @sel_d, @fecha_hasta = @sel_h, @usuario = NULL;
     PRINT N'## C19 usp_Reporte_Auditoria (rango amplio)';
     EXEC dbo.usp_Reporte_Auditoria @fecha_desde = @amp_d, @fecha_hasta = @amp_h, @usuario = NULL;
+    PRINT N'## C21 usp_Reporte_Clientes (rango amplio)';
+    EXEC dbo.usp_Reporte_Clientes  @fecha_desde = @amp_d, @fecha_hasta = @amp_h, @estado = 'T';
+    PRINT N'## C22 usp_Reporte_Facturas (rango amplio)';
+    EXEC dbo.usp_Reporte_Facturas  @fecha_desde = @amp_d, @fecha_hasta = @amp_h;
     PRINT N'## C20 usp_Reporte_Seguridad (lee el catálogo del sistema, no tablas del negocio)';
     EXEC dbo.usp_Reporte_Seguridad @usuario = NULL;
 END
@@ -134,7 +142,9 @@ DBCC DROPCLEANBUFFERS;
 DBCC FREEPROCCACHE;          -- reinicia las estadísticas por procedimiento del paso 5
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
-PRINT N'>>> ANTES';
+PRINT N'>>> ANTES (1)';
+EXEC #carga_req009;
+PRINT N'>>> ANTES (2)';
 EXEC #carga_req009;
 SET STATISTICS IO OFF;
 SET STATISTICS TIME OFF;
@@ -155,6 +165,15 @@ GO
 -- entran casi al final (la fecha crece), así que no hay divisiones de página importantes.
 CREATE CLUSTERED INDEX CIX_BitacoraAuditoria_fec_registro
     ON dbo.Bitacora_Auditoria (fec_registro);
+
+-- NONCLUSTERED con INCLUDE: reportes por rango de fecha (los mismos del script 05)
+CREATE NONCLUSTERED INDEX IX_Cliente_fecha_registro
+    ON dbo.Cliente (fecha_registro)
+    INCLUDE (estado, nombre, codigo_actividad_economica);
+
+CREATE NONCLUSTERED INDEX IX_Factura_fecha
+    ON dbo.Factura (fecha)
+    INCLUDE (codigo_cliente, subtotal, total_impuestos, monto_total);
 
 -- NONCLUSTERED: llaves foráneas que se usan en JOIN y filtros y que no tenían índice
 CREATE NONCLUSTERED INDEX IX_Factura_codigo_cliente
@@ -200,7 +219,9 @@ DBCC DROPCLEANBUFFERS;
 DBCC FREEPROCCACHE;
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
-PRINT N'>>> DESPUÉS';
+PRINT N'>>> DESPUÉS (1)';
+EXEC #carga_req009;
+PRINT N'>>> DESPUÉS (2)';
 EXEC #carga_req009;
 SET STATISTICS IO OFF;
 SET STATISTICS TIME OFF;
